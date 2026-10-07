@@ -5,6 +5,8 @@ URL exists, the build works and the secrets plumbing is proven, so that adding
 the real retrieval in week three is an update to something healthy rather than
 a first deployment under deadline.
 """
+import os
+
 import gradio as gr
 
 PLACEHOLDER = (
@@ -33,4 +35,5 @@ demo = gr.Interface(
 )
 
 if __name__ == "__main__":
-    demo.launch()
+    # Render (and most hosts) inject the port to bind. 7860 is Gradio's local default.
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
