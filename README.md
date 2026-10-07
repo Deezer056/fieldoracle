@@ -1,6 +1,6 @@
 ---
 title: FieldOracle
-emoji: üåæ
+emoji: 🌾
 colorFrom: green
 colorTo: yellow
 sdk: gradio
