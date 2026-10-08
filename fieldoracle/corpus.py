@@ -502,4 +502,135 @@ DOCS = [
                 "A shorter crop finishes before the water runs out; the DOA zone fertilizer tables "
                 "also show a 3 month crop takes its last top dressing at 7 weeks rather than 9.",
     },
+    # ------------------------------------------- seed corpus (course-provided)
+    # Carried over from scripts/corpus.py in the STEM Link level4-lesson1 repo,
+    # so that this project's index can be rebuilt from this repo alone. Two
+    # entries were deliberately NOT carried over: fert-3month and fert-3.5month
+    # misread the DOA table's merged Time column and state a basal urea dose
+    # that does not exist, with splits that contradict their own totals. See
+    # finding 9. fert-irrigated-izdz and fert-irrigated-izdz-longer above are
+    # the corrected replacements and cover the same two questions.
+    {
+        "id": "var-3month",
+        "category": "variety",
+        "source": "RRDI — Rice varieties, 3 month age class",
+        "text": "Three-month age class rice varieties released in Sri Lanka include Bg 300, "
+                "Bg 301, Bw 302, At 303, Bg 304, Bg 305, At 306 and At 307. These mature in "
+                "roughly 90 days and are chosen when the season is short or water is likely "
+                "to run out early.",
+    },
+    {
+        "id": "var-3.5month",
+        "category": "variety",
+        "source": "RRDI — Rice varieties, 3.5 month age class",
+        "text": "Three-and-a-half-month age class varieties include Bg 350, Bw 351, Bg 352, "
+                "At 353, At 354, Ld 355, Ld 356, Bg 357, Bg 358, Bg 359, Bg 360, Bw 361, At "
+                "362, Bw 363 and Bw 364. The 3.5 month group is the most widely planted in "
+                "Sri Lanka, covering about 73% of cultivated area in 2023.",
+    },
+    {
+        "id": "var-4month",
+        "category": "variety",
+        "source": "RRDI — Rice varieties, 4 month age class",
+        "text": "Four-month age class varieties include Bw 400, Bg 401, At 402, Bg 403, Bg "
+                "405 and the hybrid Bg 407(H). Four-and-a-half-month varieties include Bg "
+                "379-2, Bg 11-11, Bg 450, Bw 451, Bw 452 and Bw 453.",
+    },
+    {
+        "id": "var-popular",
+        "category": "variety",
+        "source": "RRDI — Varietal adoption 2023",
+        "text": "By cultivated extent in 2023 the most adopted single varieties were At 362 "
+                "at 14.25% and Bg 352 at 12.84%. Long grain varieties accounted for 73% of "
+                "extent and white-pericarp varieties for 80%.",
+    },
+    {
+        "id": "fert-zinc",
+        "category": "fertilizer",
+        "source": "RRDI — Micronutrients",
+        "text": "Zinc sulphate at 5 kg/ha is applied basally in the irrigated Intermediate "
+                "and Dry Zone recommendation. Zinc deficiency shows as bronzing and stunting "
+                "in young plants, most often on alkaline or heavily levelled soils.",
+    },
+    {
+        "id": "seed-rate",
+        "category": "establishment",
+        "source": "RRDI — Direct sowing, seed rate",
+        "text": "Recommended seed paddy rate for direct sowing depends on grain size. For "
+                "medium grain varieties, 23 to 25 g per 1000 seeds, use about 100 kg/ha. For "
+                "small grained Samba types, use about 75 to 80 kg/ha. Sowing heavier than "
+                "this wastes seed and raises lodging risk without raising yield.",
+    },
+    {
+        "id": "panicle-target",
+        "category": "establishment",
+        "source": "RRDI — Crop density",
+        "text": "The potential yield of a healthy rice crop corresponds to roughly 350 to 400 "
+                "panicles per square metre. Counting panicles in a quarter square metre frame "
+                "at maturity is the simplest field check of whether establishment was "
+                "adequate.",
+    },
+    {
+        "id": "water-seeding",
+        "category": "establishment",
+        "source": "RRDI — Modified water seeding method",
+        "text": "In the modified water seeding method, seed is soaked in water for 24 hours "
+                "and incubated for 48 hours before sowing. The field must be properly "
+                "levelled to hold a shallow water depth of 2 to 2.5 cm at sowing, held at "
+                "that level until 7 to 10 days after sowing, then raised to 4 to 5 cm as in "
+                "normal irrigated conditions.",
+    },
+    {
+        "id": "water-seeding-weeds",
+        "category": "establishment",
+        "source": "RRDI — Modified water seeding, weed control",
+        "text": "Modified water seeding suppresses weeds without herbicide because rice "
+                "tolerates anaerobic germination and most grasses and sedges do not. "
+                "Herbicide application for grasses and sedges is therefore not required. "
+                "Aquatic weeds may still appear and can be treated with a suitable herbicide "
+                "at 2 to 3 weeks after sowing.",
+    },
+    {
+        "id": "water-seeding-varieties",
+        "category": "variety",
+        "source": "RRDI — Modified water seeding, suitable varieties",
+        "text": "Varieties suited to modified water seeding include Bg 300, At 308, Bg 310, "
+                "Bw 351, Bw 367, Bg 366, Bg 380 and Bg 379-2. Bg 300 is identified as "
+                "particularly suitable for this method.",
+    },
+    {
+        "id": "seed-quality",
+        "category": "establishment",
+        "source": "RRDI — Seed quality",
+        "text": "Certified seed paddy with a germination percentage above 85% should be used. "
+                "Seed below that threshold gives patchy establishment that no amount of later "
+                "fertilizer will correct.",
+    },
+    {
+        "id": "seasons",
+        "category": "season",
+        "source": "DOA — Cultivation seasons",
+        "text": "Sri Lanka has two paddy seasons. Maha runs roughly September to March on the "
+                "north-east monsoon and is the major season with more reliable rainfall. Yala "
+                "runs roughly May to August on the south-west monsoon, is the minor season, "
+                "and depends much more heavily on irrigation in the Dry Zone.",
+    },
+    {
+        "id": "land-prep-water",
+        "category": "water",
+        "source": "RRDI — Water management, land preparation",
+        "text": "The highest water use in the whole rice crop is during land preparation. "
+                "Keeping land preparation short and timing it to capture rainfall at the "
+                "right point in the season is the single largest saving available in "
+                "irrigation water use.",
+    },
+    {
+        "id": "maturity-adoption",
+        "category": "season",
+        "source": "RRDI — Socio-economics",
+        "text": "The 3.5 month maturity age group was adopted on 73% of cultivated area in "
+                "2023. Age class drives the fertilizer schedule, the irrigation calendar and "
+                "the harvest date, so it is the first thing to establish about any paddy "
+                "field before giving advice.",
+    },
 ]

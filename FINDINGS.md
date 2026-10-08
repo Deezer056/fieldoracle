@@ -210,6 +210,81 @@ Harvesting was left out of batch 2 for the same reason. RRDI has no harvesting
 page stating moisture content or loss figures, and those numbers are easy to
 half-remember. The corpus has a gap where the source has a gap.
 
+### 9. The error in finding 7 was already in the index, shipped
+
+Finding 7 described a misread that *would* put a wrong fertilizer rate in front
+of a farmer. It turned out not to be hypothetical. An audit of the Pinecone
+index against the repo (`scripts/audit_index.py`) found 61 vectors where the
+repo defined 45. Sixteen were seed passages loaded by notebook 10 from the
+course repo's own `scripts/corpus.py`, and two of them carried exactly the
+column shift:
+
+> For a THREE MONTH age class variety under irrigation in the Intermediate or
+> Dry Zone, apply urea as follows [...] 55 kg/ha basal, 50 kg/ha at 2 weeks,
+> 75 kg/ha at 4 weeks, 65 kg/ha at 6 weeks and 35 kg/ha at 7 weeks. Total urea
+> is 225 kg/ha. TSP is 25 kg/ha at 4 weeks and 35 kg/ha at 6 weeks, total
+> 55 kg/ha. MOP total is 60 kg/ha.
+
+The passage contradicts itself twice. The urea splits sum to 280 against a
+stated 225. The TSP splits sum to 60 against a stated 55 - and 60 is the MOP
+total named in the next sentence. All four totals are right; every split is
+attached to the wrong column. The basal urea dose does not exist: that 55 kg is
+TSP, and the entire TSP dose goes on basally.
+
+Three things are worth separating out.
+
+**It is not a hallucination.** No model produced this. It was written into a
+seed corpus by a person reading a published government table, and the table
+misleads because one merged cell shifts a row. Retrieval-augmented generation is
+sold as the fix for models inventing facts, and here the grounding corpus was
+the thing that was wrong. Citing a source does not make an answer true; it only
+makes the error traceable.
+
+**The audit was only possible because the totals were published.** Nothing about
+the passage reads as suspicious - the numbers are plausible, the units are right,
+the structure is conventional. It fails arithmetic, and only arithmetic. A
+corpus of prose claims with no internal redundancy would have no equivalent
+check.
+
+**The two versions were live in the same index at the same time.** After batch 2
+loaded, `fert-3month` and `fert-irrigated-izdz` both sat in the index, both
+answering "how much fertilizer for a three month variety", with different
+numbers. Which one surfaced depended on embedding similarity to the farmer's
+phrasing - effectively a coin toss, and an undetectable one, because the wrong
+answer cites a real DOA page. No retrieval metric distinguishes these two
+passages: both are topically correct, both are on-domain, both would score as a
+hit against a question about three-month fertilizer rates.
+
+Resolution: the two bad passages were dropped and the other fourteen seed
+passages carried into this repo's `corpus.py`, so the index is reproducible from
+the repo alone. `scripts/drop_stale.py` removes anything in the index that the
+repo no longer defines. Index and repo now agree at 59.
+
+A suspicion that did not survive checking, recorded because the checking is the
+point. Three seed passages state a 73% figure - the 3.5 month maturity class by
+extent, long grain varieties by extent, and the 3.5 month group again - and one
+statistic restated three times looked more likely than two attributes landing on
+the same number. The RRDI socio-economics page states both separately for 2023:
+3.5 month class 73%, long grain 73%, white pericarp 80%, At 362 14.25%, Bg 352
+12.84%, traditional varieties 0.41%. The coincidence is real and the passages
+are right. Finding 7 was caught by arithmetic and this was cleared by arithmetic
+failing to catch it, which is the same discipline producing opposite verdicts.
+
+The same page carries a second set of figures for 2021-2023 in which the most
+popular variety is Bg 300 at 16.2% rather than At 362 at 14.25%, and the 3.5
+month class is 70.8% rather than 73%. So "what is the most popular rice variety"
+has two defensible answers from one page depending on the period, and the corpus
+currently carries only one of them without saying which period it is. That is a
+retrieval ambiguity rather than an error, but it is the kind that produces a
+confidently wrong answer.
+
+A side effect worth noting: finding 3 used Q1 ("fertilizer for Bg 300") as the
+acceptance test for agentic RAG, on the grounds that no single passage connects
+Bg 300 to a fertilizer rate. That test is unchanged - `fert-irrigated-izdz` names
+the three month class and not the variety, exactly as `fert-3month` did - but it
+was being run against a passage with wrong numbers. The two-hop retrieval would
+have succeeded and the answer would still have been wrong.
+
 ---
 
 ## Limitations
@@ -221,9 +296,11 @@ half-remember. The corpus has a gap where the source has a gap.
   `text-embedding-3-large`, k=5, or a larger local model.
 - The questions were written by the person building the system, which is the
   weakest kind of test set.
-- Findings 7 and 8 are about corpus correctness, not retrieval. Nothing in the
-  evaluation plan below tests whether a retrieved passage is true - only whether
-  it was retrieved. That gap is not closed by adding more questions.
+- Findings 7, 8 and 9 are about corpus correctness, not retrieval. Nothing in
+  the evaluation plan below tests whether a retrieved passage is true - only
+  whether it was retrieved. That gap is not closed by adding more questions, and
+  finding 9 shows it is not theoretical: two passages with contradictory numbers
+  would both have scored as hits.
 
 ## Next
 
@@ -237,3 +314,11 @@ half-remember. The corpus has a gap where the source has a gap.
    passage carrying a number, re-fetch the cited page and confirm the number is
    on it. Finding 7 was caught by arithmetic and finding 8 by re-fetching, and
    neither is something a hit-rate score would have surfaced.
+6. Run `scripts/audit_index.py` before every demo. Finding 9 existed for days
+   because nothing compared what was deployed against what was in the repo.
+7. Three seed-corpus numbers are still unverified: the seed rate (100 kg/ha
+   medium grain, 75-80 kg/ha Samba, 23-25 g per 1000 seeds), the 85% germination
+   threshold, and the 350-400 panicles per square metre target. None appear on
+   any RRDI page reachable so far. The wet seeding page does give "~400 seeds
+   per square meter", which is a seed rate and not a panicle count - close
+   enough in wording and number to be worth ruling out as a conflation.

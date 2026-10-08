@@ -16,6 +16,13 @@ repo = {d["id"] for d in DOCS}
 
 print(f"in index: {len(live)}   in repo: {len(repo)}")
 strangers = sorted(live - repo)
+missing = sorted(repo - live)
+if missing:
+    print(f"\n{len(missing)} in your repo but NOT loaded: {missing}")
+
 print(f"\n{len(strangers)} in the index but NOT in your repo:")
-for vid, v in index.fetch(ids=strangers).vectors.items():
-    print(f"\n[{vid}] {v.metadata.get('text', '(no text)')[:300]}")
+if not strangers:
+    print("    none - index and repo agree")
+else:
+    for vid, v in index.fetch(ids=strangers).vectors.items():
+        print(f"\n[{vid}] {v.metadata.get('text', '(no text)')[:300]}")
