@@ -162,6 +162,54 @@ one run and `paddy cultivation bg 300 follow up planting` on the next, with
 temperature pinned at 0. Any evaluation of the rewrite step has to average over
 several runs or it is measuring noise.
 
+### 7. A merged table cell silently shifts a whole fertilizer schedule
+
+The four DOA zone fertilizer tables render with the `Time` column merged on the
+basal row. Scraped, that shifts every basal row one cell to the left, so the
+basal TSP dose arrives in the urea column. The result looks entirely plausible:
+a basal urea dressing followed by four top dressings.
+
+It is wrong, and arithmetic is what catches it. The page states its own column
+totals, and under the shifted reading nothing adds up - urea came to 280 against
+a stated 225. Reassigning the basal figure to TSP makes all four totals
+reconcile exactly, in all four tables:
+
+| Zone / regime | Urea | TSP | MOP | ZnSO4 |
+|---|---|---|---|---|
+| Intermediate & dry, irrigated | 225 | 55 | 60 | 5 |
+| Intermediate & dry, rainfed | 175 | 35 | 50 | 5 |
+| Wet, irrigated | 140 | 35 | 50 | 5 |
+| Wet, rainfed | 100 | 55 | 110 | 5 |
+
+The RRDI phosphorous page then independently confirms 55 kg/ha TSP irrigated and
+35 kg/ha rainfed, matching the reassigned basal figures.
+
+Two things follow for the project. The small one: a scraped table needs its own
+totals checked before it is trusted, and a table that publishes totals is
+checkable. The larger one: had this gone into the corpus unchecked, FieldOracle
+would have told a farmer to broadcast 55 kg of urea at establishment and skip
+phosphorus entirely. No retrieval metric would have caught it. Hit rate at k
+measures whether the right passage was found, never whether the passage is true.
+
+### 8. A figure that survived in notes did not survive re-checking
+
+A working note recorded Bg 750 as a 75-day drought-tolerant variety yielding
+about 70 bushels per acre. On re-check, the duration and the drought-prone
+recommendation are both stated on the RRDI mitigation options page. The yield
+figure is on no DOA page I could reach - not the drought-tolerant varieties
+page, which names Bg 251 GSR and Bg 314 instead, and not the ultra-short-age
+page, which does not mention Bg 750 at all.
+
+So the yield figure was dropped and the duration kept. This is worth recording
+because of where the error would have come from: not from a model hallucinating,
+but from a human note taken one step away from the source and then trusted. The
+corpus rule - every passage checked against the page it claims - exists for the
+notes as much as for the model.
+
+Harvesting was left out of batch 2 for the same reason. RRDI has no harvesting
+page stating moisture content or loss figures, and those numbers are easy to
+half-remember. The corpus has a gap where the source has a gap.
+
 ---
 
 ## Limitations
@@ -173,6 +221,9 @@ several runs or it is measuring noise.
   `text-embedding-3-large`, k=5, or a larger local model.
 - The questions were written by the person building the system, which is the
   weakest kind of test set.
+- Findings 7 and 8 are about corpus correctness, not retrieval. Nothing in the
+  evaluation plan below tests whether a retrieved passage is true - only whether
+  it was retrieved. That gap is not closed by adding more questions.
 
 ## Next
 
@@ -182,3 +233,7 @@ several runs or it is measuring noise.
 3. Treat Q1 as the acceptance test for agentic RAG when notebook 12 ships.
 4. Re-check Q2 at k=5 before adding a reranker; the right passage may already be
    within reach.
+5. Add a corpus check step that is separate from retrieval evaluation: for every
+   passage carrying a number, re-fetch the cited page and confirm the number is
+   on it. Finding 7 was caught by arithmetic and finding 8 by re-fetching, and
+   neither is something a hit-rate score would have surfaced.
