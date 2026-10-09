@@ -80,6 +80,38 @@ Query rewriting helped once, hurt once, and could not help once.
 
 ---
 
+## Measured results
+
+9 October. 23 questions (`fieldoracle/evalset.py`) against the 59-passage
+corpus, `text-embedding-3-small`, k=3. 21 answerable plus 2 that should be
+refused. The rewrite path ran three times; all three were byte-identical.
+
+| | hit@1 | hit@3 |
+|---|---|---|
+| **raw question** | 11/21 &nbsp;**52%** | 20/21 &nbsp;**95%** |
+| **rewritten** (mean of 3) | 9/21 &nbsp;43% | 12/21 &nbsp;57% |
+
+By question kind, raw:
+
+| kind | n | hit@1 | hit@3 |
+|---|---|---|---|
+| direct | 9 | 7 | 9 |
+| paraphrase | 9 | 4 | 9 |
+| two-hop | 1 | 0 | 1 |
+| ambiguous | 1 | 0 | 1 |
+| gap | 1 | 0 | 0 |
+
+Refusal separation - mean top score of answerable questions against the two
+that should be refused:
+
+| | answerable | should refuse | gap |
+|---|---|---|---|
+| raw | 0.5868 | 0.4744 | +0.1124 |
+| rewritten | 0.5694 | 0.5328 | +0.0365 |
+
+The single raw miss was `ev-14`, the question the eval set predicted would fail.
+
+
 ## Findings
 
 ### 1. A higher similarity score is not a better answer
@@ -285,17 +317,121 @@ the three month class and not the variety, exactly as `fert-3month` did - but it
 was being run against a passage with wrong numbers. The two-hop retrieval would
 have succeeded and the answer would still have been wrong.
 
+### 10. Query rewriting cost 38 points, and the reason was in the system prompt
+
+Raw questions retrieved the right passage 95% of the time at k=3. Rewritten,
+57%. Rewriting is the step the course calls the cheapest improvement available
+in RAG, and here it destroyed more than a third of the system's accuracy.
+
+The rewrites say why:
+
+| question | what the rewriter produced |
+|---|---|
+| leaves drying, plants fallen over | `sri lankan paddy cultivation database leaf drying brown fallen over` |
+| something boring inside the stem, silvery tubes | `Sri Lankan paddy cultivation database symptoms` |
+| which variety is grown the most | `Sri Lankan paddy cultivation database` |
+
+The system prompt opens: *"Rewrite the farmer's message as a short search query
+for a Sri Lankan paddy cultivation database."* The model is pasting that noun
+phrase into its output. Finding 5 caught the same model leaking its few-shot
+examples; removing the examples did not stop the leaking, it only changed what
+leaked. A small model copies whatever concrete text is in front of it, and the
+task description is text in front of it.
+
+The mechanism matters more than the leak. Every query now carries the same
+constant prefix, so every query vector is dragged toward the same point, and
+the model stops being able to tell the questions apart. That is visible in the
+results: `seasons` - the most generic passage in the corpus, and so the nearest
+to its centre - becomes the top hit for three unrelated questions, including
+"which variety is grown the most" and "when should I harvest". The rewriter did
+not make the queries wrong. It made them all similar, which is worse.
+
+Underneath that, specificity is stripped. "What can I spray for grass weeds and
+how many days after sowing" becomes "weeds control", losing both *spray* and
+*days*; it then retrieves the three weed species lists instead of the herbicide
+passage, which is the only one that could answer it. In the worst case the
+entire question was discarded and only the leaked phrase remained.
+
+**An honest caveat.** The rewriter was written for messy conversational
+messages - greetings, names, small talk - and the eval questions, while in a
+farmer's register, are already fairly clean. So this measures the rewriter
+outside the envelope it was designed for. It is a fair test of "should the app
+rewrite every incoming query", and the answer to that is clearly no. It is not
+a fair test of "does rewriting help on genuinely noisy input", which is still
+open and needs noisy variants of these same questions.
+
+### 11. There is no refusal threshold, and rewriting removes the chance of one
+
+The two should-refuse questions exist to test whether the app can decline. Raw,
+the separation looks workable: answerable questions average 0.5868 against
+0.4744 for the refusals, a gap of 0.1124. The individual numbers kill it. "What
+price will I get for my paddy this season" scores **0.5289** against
+`seed-rate` - higher than several questions the corpus genuinely answers. Any
+threshold low enough to let the real questions through also lets the price
+question through.
+
+Rewritten, it collapses entirely. The gap falls to 0.0365, and "when should I
+harvest and at what moisture content" scores 0.5696 against `seasons` - above
+the mean for answerable questions. Rewriting converts an out-of-scope question
+into a generic on-domain one, and generic on-domain is exactly what scores well.
+
+So refusal cannot be a similarity threshold, at any value, under either path.
+It has to come from the generation step: structured output with a `found` flag,
+where the model is shown the retrieved passages and asked whether they actually
+answer the question that was asked. That is `w3-02` in the plan. This is the
+evidence for why it is not optional decoration.
+
+### 12. Retrieval is not the problem; ranking is
+
+52% at 1 against 95% at 3 is the most actionable number here. The right passage
+is nearly always retrieved - it just is not first, in almost half of cases.
+
+Two things follow immediately. **Do not pass k=1 to the generator.** Passing the
+top 3 and letting the model pick converts a 52% system into a 95% one for the
+price of a few hundred tokens. And **the high-value next step is a reranker, not
+a better embedding model**: swapping `text-embedding-3-small` for `-large` works
+on recall, and recall is already 95%.
+
+The gap sits almost entirely on the paraphrase questions - direct 7/9 at rank 1,
+paraphrase 4/9, both 9/9 by rank 3. Asking in a farmer's words rather than the
+corpus's words costs about two places of ranking, not the answer. Since real
+users only ever ask in their own words, the hit@1 number is the realistic one
+and the hit@3 number is the achievable one.
+
+One correction to finding 3 falls out of this. The two-hop question retrieved
+**both** needed passages inside the top 3 on the raw path. Retrieval can already
+support that answer; what is missing is the step that chains them. The problem
+is in the agent, not the index - which makes it a better acceptance test for
+notebook 12 than it was when it looked like a retrieval failure.
+
+### 13. Determinism showed up this time
+
+Finding 6 recorded that `temperature=0.0` was not reproducible across runs.
+Across these three runs the rewrites were byte-identical and the hit rates
+identical to the percentage point - 43% and 57%, three times. The small score
+wobbles in the output are Pinecone's, not the model's.
+
+Both observations are real. Non-determinism at temperature zero appeared on
+three messages and not on twenty-three. The useful conclusion is not that it is
+deterministic or that it is not, but that it cannot be assumed either way, which
+is why the harness takes `--runs`.
+
 ---
 
 ## Limitations
 
-- **Three questions.** Far too few to support a number. These are observations
-  about mechanisms, not a measured hit rate. The eval set of ~20 questions in
-  week 3 is what produces a figure worth reporting.
-- One embedding model, one k, one rewrite model. No comparison against
-  `text-embedding-3-large`, k=5, or a larger local model.
-- The questions were written by the person building the system, which is the
-  weakest kind of test set.
+- **23 questions** is small. One question moves hit@1 by about 5 points, so
+  treat 52% as "about half" and do not report a trend from it.
+- **The questions and the corpus have the same author.** This is the weakest
+  kind of test set: I know what is in the passages, so the questions are
+  unavoidably shaped by that, even written deliberately in other words. A set
+  written by someone who has not read the corpus would be worth more than
+  doubling this one.
+- **`--k 5` initially changed nothing**, because hit@1 and hit@3 do not depend
+  on how many results are fetched. The harness now also reports hit@k. The first
+  k=5 numbers in the log are therefore a duplicate of k=3, not a result.
+- One embedding model, one rewrite model. No comparison against
+  `text-embedding-3-large` or a larger local model.
 - Findings 7, 8 and 9 are about corpus correctness, not retrieval. Nothing in
   the evaluation plan below tests whether a retrieved passage is true - only
   whether it was retrieved. That gap is not closed by adding more questions, and
@@ -304,19 +440,38 @@ have succeeded and the answer would still have been wrong.
 
 ## Next
 
-1. Build the 20-question evaluation set with known-correct passages, and measure
-   hit rate at 1 and 3 — raw versus rewritten, averaged over 3 runs.
-2. Compare `qwen3-4b` against `gemma-4-e4b` on the rewrite step.
-3. Treat Q1 as the acceptance test for agentic RAG when notebook 12 ships.
-4. Re-check Q2 at k=5 before adding a reranker; the right passage may already be
+1. ~~Build the evaluation set and measure hit rate at 1 and 3, raw versus
+   rewritten, over 3 runs.~~ Done 9 October: 52% / 95% raw, 43% / 57% rewritten.
+2. **Pass the top 3 to the generator, not the top 1.** Finding 12: this is a
+   52% to 95% change for a few hundred tokens, and it is the cheapest fix on
+   this list by a wide margin.
+3. **Take the leaked phrase out of the rewrite prompt** and re-measure. The
+   system prompt names "a Sri Lankan paddy cultivation database" and the model
+   copies it verbatim into every query (finding 10). Describe the target
+   without naming it, then see whether rewriting is merely useless or actually
+   harmful.
+4. **Write noisy variants of the eval questions** - greetings, names, places,
+   two questions at once - and re-run both paths. The rewriter was built for
+   that input and has never been measured on it.
+5. **Refusal belongs in the generator, not in a threshold** (finding 11). Build
+   `w3-02` with a `found` flag and add the two refuse questions to its tests.
+6. **Add a district-to-zone passage.** `ev-14` fails because nothing links
+   Anuradhapura to the dry zone; the district list is on the DOA page and was
+   never carried across. One passage closes it, and it is the most common way a
+   real farmer would phrase the question.
+7. Compare `qwen3-4b` against `gemma-4-e4b` on the rewrite step.
+8. Treat Q1 as the acceptance test for agentic RAG when notebook 12 ships —
+   noting finding 12: retrieval already returns both passages, so what is being
+   tested is the chaining, not the index.
+9. Re-check Q2 at k=5 before adding a reranker; the right passage may already be
    within reach.
-5. Add a corpus check step that is separate from retrieval evaluation: for every
+10. Add a corpus check step that is separate from retrieval evaluation: for every
    passage carrying a number, re-fetch the cited page and confirm the number is
    on it. Finding 7 was caught by arithmetic and finding 8 by re-fetching, and
    neither is something a hit-rate score would have surfaced.
-6. Run `scripts/audit_index.py` before every demo. Finding 9 existed for days
+11. Run `scripts/audit_index.py` before every demo. Finding 9 existed for days
    because nothing compared what was deployed against what was in the repo.
-7. Three seed-corpus numbers are still unverified: the seed rate (100 kg/ha
+12. Three seed-corpus numbers are still unverified: the seed rate (100 kg/ha
    medium grain, 75-80 kg/ha Samba, 23-25 g per 1000 seeds), the 85% germination
    threshold, and the 350-400 panicles per square metre target. None appear on
    any RRDI page reachable so far. The wet seeding page does give "~400 seeds
